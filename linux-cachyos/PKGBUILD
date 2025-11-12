@@ -123,6 +123,12 @@
 # Build a debug package with non-stripped vmlinux
 : "${_build_debug:=no}"
 
+# Disable desktop/workstation hardware for bare metal servers
+# This will disable: DRM/graphics, wireless, bluetooth, sound, and multimedia subsystems
+# WARNING: This will result in a kernel with NO graphics output capability
+# Relies on serial console for remote management (IPMI/SOL)
+: "${_server_build:=yes}"
+
 # Enable AUTOFDO_CLANG for the first compilation to create a kernel, which can be used for profiling
 # Workflow:
 # https://cachyos.org/blog/2411-kernel-autofdo/
@@ -346,7 +352,7 @@ prepare() {
 
     echo "Selecting '$_use_llvm_lto' LLVM level..."
 
-    if ! _is_lto_kernel; then
+    if ! _is_lto_kernel && [ "$_server_build" != "yes" ]; then
         echo "Enabling QR Code Panic for GCC Kernels"
         scripts/config --set-str DRM_PANIC_SCREEN qr_code -e DRM_PANIC_SCREEN_QR_CODE \
             --set-str DRM_PANIC_SCREEN_QR_CODE_URL https://panic.archlinux.org/panic_report# \
@@ -466,6 +472,33 @@ prepare() {
 
     echo "Enable USER_NS_UNPRIVILEGED"
     scripts/config -e USER_NS
+
+    ### Disable desktop/workstation hardware for server builds
+    if [ "$_server_build" = "yes" ]; then
+        echo "Disabling DRM/graphics subsystem for server build..."
+        scripts/config -d DRM \
+            -d DRM_FBDEV_EMULATION \
+            -d DRM_PANIC \
+            -d DRM_SIMPLEDRM
+
+        echo "Disabling wireless subsystems for server build..."
+        scripts/config -d WIRELESS \
+            -d WLAN \
+            -d CFG80211 \
+            -d MAC80211
+
+        echo "Disabling bluetooth subsystem for server build..."
+        scripts/config -d BT
+
+        echo "Disabling sound/audio subsystems for server build..."
+        scripts/config -d SOUND \
+            -d SND
+
+        echo "Disabling multimedia subsystems for server build..."
+        scripts/config -d MEDIA_SUPPORT \
+            -d VIDEO_DEV \
+            -d DVB_CORE
+    fi
 
     ### Optionally use running kernel's config
     # code originally by nous; http://aur.archlinux.org/packages.php?ID=40191
