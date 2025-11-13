@@ -1,0 +1,11 @@
+--- a/drivers/firmware/efi/libstub/Makefile
++++ b/drivers/firmware/efi/libstub/Makefile
+@@ -57,6 +57,8 @@ KBUILD_CFLAGS := $(filter-out $(CC_FLAGS_SCS), $(KBUILD_CFLAGS))
+ KBUILD_CFLAGS := $(filter-out $(CC_FLAGS_CFI), $(KBUILD_CFLAGS))
+ # disable LTO
+ KBUILD_CFLAGS := $(filter-out $(CC_FLAGS_LTO), $(KBUILD_CFLAGS))
++# disable AutoFDO and Propeller (create absolute relocations incompatible with PIC)
++KBUILD_CFLAGS := $(filter-out -fprofile-sample-use=% -fsplit-machine-functions -fbasic-block-address-map -ffunction-sections -fdebug-info-for-profiling, $(KBUILD_CFLAGS))
+
+ # Disable stack protector
+ KBUILD_CFLAGS := $(filter-out $(CC_FLAGS_STACKPROTECTOR), $(KBUILD_CFLAGS))
