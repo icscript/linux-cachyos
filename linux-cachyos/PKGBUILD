@@ -265,6 +265,7 @@ fi
 
 # EFI stub fix for AutoFDO and Propeller
 # Required when using AutoFDO or Propeller to prevent absolute relocations in EFI stub
+# Applied unconditionally as it's harmless when AutoFDO/Propeller are disabled
 source+=("fix-efi-stub-autofdo-propeller.patch")
 
 ## List of CachyOS schedulers
