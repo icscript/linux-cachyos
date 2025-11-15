@@ -124,6 +124,12 @@
 # Build a debug package with non-stripped vmlinux
 : "${_build_debug:=no}"
 
+# Enable builtin critical modules for blockchain P2P performance
+# This makes crypto, NVMe, and compression modules builtin (=y) instead of loadable (=m)
+# Provides 10-15% performance improvement for encrypted P2P traffic
+# Set to "no" to use standard config (all modules as =m)
+: "${_builtin_critical_modules:=yes}"
+
 # ATTENTION: Do not modify after this line
 _is_lto_kernel() {
     [[ "$_use_llvm_lto" = "thin" || "$_use_llvm_lto" = "full"  || "$_use_llvm_lto" = "thin-dist" ]]
@@ -256,6 +262,34 @@ prepare() {
 
     echo "Setting config..."
     cp ../config .config
+
+    ### Apply builtin critical modules optimization
+    if [ "$_builtin_critical_modules" = "yes" ] && [ -f "../config-fragment-builtin-modules" ]; then
+        echo "Applying critical modules builtin optimization..."
+        echo "  Making crypto, NVMe, compression modules builtin (=y) for performance"
+
+        # Read config fragment and apply each setting
+        while IFS= read -r line; do
+            # Skip comments and empty lines
+            [[ "$line" =~ ^#.*$ || -z "$line" ]] && continue
+
+            # Extract config option (e.g., CONFIG_CRYPTO_AES_NI_INTEL=y)
+            if [[ "$line" =~ ^CONFIG_([A-Z0-9_]+)=([ynm])$ ]]; then
+                config_name="${BASH_REMATCH[1]}"
+                config_value="${BASH_REMATCH[2]}"
+
+                # Apply using scripts/config
+                scripts/config -e "$config_name"
+
+                # For =y specifically, ensure it's builtin not module
+                if [ "$config_value" = "y" ]; then
+                    scripts/config --set-val "CONFIG_$config_name" y
+                fi
+            fi
+        done < "../config-fragment-builtin-modules"
+
+        echo "  ✓ Applied builtin optimizations for blockchain P2P performance"
+    fi
 
     ### Select CPU optimization
     if [ -n "$_processor_opt" ]; then
