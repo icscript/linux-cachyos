@@ -38,8 +38,19 @@ CONFIG_NVME_KEYRING=y
 # ixgbe driver code executes for every packet RX/TX
 # Builtin provides 1-3% latency improvement for P2P messages
 # Dependencies must also be builtin (Kconfig constraint: !(IXGBE=y && DCA=m))
+
+# PTP subsystem - required for ixgbe low-latency timestamping
+# PTP_1588_CLOCK_OPTIONAL mirrors PTP_1588_CLOCK value, so parent must be =y
+CONFIG_PTP_1588_CLOCK=y
+CONFIG_PPS=y
+CONFIG_NET_PTP_CLASSIFY=y
+
+# MDIO and PHY layer
+CONFIG_MDIO_BUS=y
 CONFIG_MDIO=y
 CONFIG_PHYLIB=y
+
+# ixgbe dependencies
 CONFIG_DCA=y
 CONFIG_PTP_1588_CLOCK_OPTIONAL=y
 CONFIG_NET_DEVLINK=y
