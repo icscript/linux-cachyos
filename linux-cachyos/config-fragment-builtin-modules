@@ -51,6 +51,9 @@ CONFIG_MDIO=y
 CONFIG_PHYLIB=y
 
 # ixgbe dependencies
+# Disable Intel I/OAT DMA engine (Intel Xeon only, not on AMD Zen4)
+# This frees DCA to be builtin instead of being forced to =m
+CONFIG_INTEL_IOATDMA=n
 CONFIG_DCA=y
 CONFIG_PTP_1588_CLOCK_OPTIONAL=y
 CONFIG_NET_DEVLINK=y
