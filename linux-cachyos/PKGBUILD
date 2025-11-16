@@ -325,7 +325,7 @@ prepare() {
 
                 # For =y specifically, ensure it's builtin not module
                 if [ "$config_value" = "y" ]; then
-                    scripts/config --set-val "CONFIG_$config_name" y
+                    scripts/config --set-val "$config_name" y
                 fi
             fi
         done < "../config-fragment-builtin-modules"
