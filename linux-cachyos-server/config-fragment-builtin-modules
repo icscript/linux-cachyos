@@ -37,11 +37,13 @@ CONFIG_NVME_KEYRING=y
 # Network driver - MEDIUM PRIORITY (low-latency networking)
 # ixgbe driver code executes for every packet RX/TX
 # Builtin provides 1-3% latency improvement for P2P messages
-# Dependencies must also be builtin (Kconfig constraint)
+# Dependencies must also be builtin (Kconfig constraint: !(IXGBE=y && DCA=m))
 CONFIG_MDIO=y
 CONFIG_PHYLIB=y
 CONFIG_DCA=y
-CONFIG_PTP=y
+CONFIG_PTP_1588_CLOCK_OPTIONAL=y
+CONFIG_NET_DEVLINK=y
+CONFIG_PLDMFW=y
 CONFIG_IXGBE=y
 
 # Compression - DISABLED (not used for blockchain snapshots)
