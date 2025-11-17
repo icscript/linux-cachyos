@@ -24,8 +24,7 @@
 CONFIG_CRYPTO_AES_NI_INTEL=y
 CONFIG_CRYPTO_GHASH_CLMUL_NI_INTEL=y
 CONFIG_CRYPTO_POLYVAL_CLMUL_NI=y
-CONFIG_CRYPTO_SHA1_SSSE3=y
-CONFIG_CRYPTO_SHA512_SSSE3=y
+# Note: SHA1_SSSE3 and SHA512_SSSE3 removed in 6.17 - now in lib/crypto (always compiled)
 
 # NVMe storage - HIGH PRIORITY
 # Every disk I/O goes through NVMe driver
