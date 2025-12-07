@@ -4,6 +4,8 @@
 
 Your kernel is now configured to automatically optimize critical modules for blockchain P2P performance!
 
+> **Implementation Note (December 2025):** The module configuration is now **inlined directly in the PKGBUILD** rather than using a separate `config-fragment-builtin-modules` file. This eliminates hash conflicts when syncing from upstream. The optimization works exactly the same way - this is just an internal implementation change.
+
 ### For Your Build Script (Recommended)
 
 **No changes needed!** Your build script already works. The optimization is enabled by default for `linux-cachyos-server`.
@@ -56,7 +58,7 @@ bash build-cachyos-kernel.sh
 
 1. **Base config loaded** - Standard CachyOS server configuration
 2. **Builtin optimization applied** (if `_builtin_critical_modules=yes`)
-   - Reads `config-fragment-builtin-modules`
+   - Applies inlined config settings in `prepare()` function
    - Changes crypto (3), NVMe (4), network (11) modules from =m to =y
    - Disables INTEL_IOATDMA (Intel Xeon only, conflicts with DCA on AMD)
 3. **CPU optimization** - Sets Zen4 architecture flags
@@ -128,25 +130,26 @@ Your modprobed.db has 79 modules. Here's the size comparison:
 
 ### Adding More Modules as Builtin
 
-Edit `linux-cachyos-server/config-fragment-builtin-modules`:
+Edit the `### CUSTOM SECTION` in `linux-cachyos/PKGBUILD` (in the `prepare()` function):
 
 ```bash
-# Add your custom module
-CONFIG_YOUR_MODULE=y
+# Add your custom module in the CUSTOM SECTION:
+scripts/config --set-val YOUR_MODULE y
 ```
 
-### Regenerating Config Fragment
+### Viewing Current Settings
 
-If you update your modprobed.db:
+The builtin module settings are defined in the PKGBUILD's `prepare()` function, clearly marked with banner comments:
 
 ```bash
-cd /home/user/linux-cachyos
-modprobed-db list | bash scripts/analyze-modprobed-for-builtin.sh
+### ========================================================================
+### CUSTOM SECTION: Builtin Critical Modules Optimization
+...
+### ========================================================================
+```
 
-# Review generated config
-cat linux-cachyos-server/config-fragment-builtin-modules
-
-# Build with new config
+After modifying, rebuild the kernel:
+```bash
 bash ~/build-cachyos-kernel.sh
 ```
 
@@ -250,11 +253,12 @@ lsmod | grep -E 'aesni|ghash|nvme|ixgbe|dca'
 ```bash
 # Look in build log for:
 # "Applying critical modules builtin optimization..."
+# "✓ Applied 18 builtin module settings for blockchain P2P performance"
 ```
 
-**Check 2:** Does config fragment exist?
+**Check 2:** Verify the PKGBUILD has the custom section:
 ```bash
-ls -la linux-cachyos-server/config-fragment-builtin-modules
+grep -A5 "CUSTOM SECTION: Builtin Critical Modules" linux-cachyos/PKGBUILD
 ```
 
 **Solution:** Rebuild with explicit setting:
@@ -300,8 +304,8 @@ cd ~ && chrt --idle 0 nice -n 19 ionice -c 3 bash build-cachyos-kernel.sh
 
 The optimization is automatic because:
 1. `_builtin_critical_modules` defaults to `yes` in PKGBUILD
-2. Config fragment is in `linux-cachyos-server/`
-3. Build script uses `linux-cachyos-server` variant
+2. Module settings are inlined in the PKGBUILD's `prepare()` function
+3. Build script uses the `linux-cachyos` variant
 
 ### Recommended Enhanced Workflow
 
@@ -364,8 +368,8 @@ aes-xts-plain64: 2.8 GB/s (encryption)  [+12%]
 **Q: Will this increase compile time?**
 A: No. Same code is compiled, just linked differently.
 
-**Q: Can I use this with profiling variant?**
-A: Yes! The config fragment also exists for `linux-cachyos` (profiling). Set `_builtin_critical_modules=yes` when building.
+**Q: Can I use this with the linux-cachyos variant?**
+A: Yes! Both `linux-cachyos` and `linux-cachyos-server` have the optimization inlined. Set `_builtin_critical_modules=yes` when building (enabled by default).
 
 **Q: What if I don't use encryption?**
 A: You still benefit from NVMe optimization (7-10% I/O improvement). Crypto modules add ~2MB, minimal cost.
@@ -404,7 +408,7 @@ A: Set `export _builtin_critical_modules=no` before building.
 
 - `_builtin_critical_modules` - Enable/disable optimization
 - `_localmodcfg` - Use modprobed-db for minimal module set
-- Config fragment - Customize which modules are builtin
+- PKGBUILD `### CUSTOM SECTION` - Customize which modules are builtin
 
 ### Next Steps
 

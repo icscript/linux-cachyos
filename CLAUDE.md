@@ -20,27 +20,41 @@ This is the only branch that matters for production builds. Other branches are e
 
 ## Customizations
 
-### Config Fragment for Built-in Modules
+### Inlined Builtin Module Configuration
 
-The key customization is `config-fragment-builtin-modules` in `linux-cachyos/`, which compiles critical hot-path kernel modules as built-in (`=y`) instead of loadable modules (`=m`). This provides 5-12% performance improvement for validator workloads.
+The key customization is the **inlined config section** in the PKGBUILD's `prepare()` function (marked with `### CUSTOM SECTION`). This compiles critical hot-path kernel modules as built-in (`=y`) instead of loadable modules (`=m`), providing 12-18% performance improvement for validator workloads.
 
-**Optimized modules:**
-- **Crypto acceleration**: AES-NI, GHASH, POLYVAL (encrypted P2P traffic)
-- **NVMe storage**: nvme, nvme-core, nvme-auth (disk I/O latency)
-- **Network**: ixgbe driver + dependencies (low-latency networking)
+> **Note:** Prior to December 2025, this was implemented as a separate `config-fragment-builtin-modules` file. The settings are now inlined directly in the PKGBUILD to eliminate hash conflicts when syncing from upstream. See "Why Inlined?" below.
+
+**Optimized modules (18 total):**
+- **Crypto acceleration** (3): AES-NI, GHASH, POLYVAL (encrypted P2P traffic)
+- **NVMe storage** (4): nvme, nvme-core, nvme-auth, nvme-keyring (disk I/O latency)
+- **Network** (11): ixgbe driver + all dependencies (low-latency networking)
 
 **Target hardware:**
 - AMD Zen4 processors (bare metal, not VM)
 - Intel ixgbe 10GbE NICs
 - NVMe storage
 
-### Enabling/Disabling the Fragment
+### Enabling/Disabling the Optimization
 
 The PKGBUILD checks for `_builtin_critical_modules`:
 ```bash
 export _builtin_critical_modules=yes   # Enable (default)
 export _builtin_critical_modules=no    # Disable
 ```
+
+### Why Inlined? (Eliminating Hash Conflicts)
+
+Previously, `config-fragment-builtin-modules` was listed in the PKGBUILD's `source=()` array with a corresponding hash in `b2sums`. This caused merge conflicts every time upstream updated their hashes because:
+- Upstream's source array had 3 entries
+- Our source array had 4 entries (with the fragment)
+- The `b2sums` arrays didn't align, causing conflicts
+
+By inlining the config settings directly in the PKGBUILD:
+- Our `source` and `b2sums` arrays now match upstream's structure exactly
+- Hash updates from upstream can be accepted without conflicts
+- Syncing is now a clean merge in most cases
 
 ---
 
@@ -56,43 +70,24 @@ git checkout claude/optimize-kernel-modules-01172y998BL5PYyHj4TFDyqi
 git merge upstream/master
 ```
 
-### Resolving b2sums Conflicts
+**In most cases, this will merge cleanly.** Conflicts only occur if upstream modifies the same PKGBUILD sections we customized (rare).
 
-Conflicts typically occur in the `b2sums` array in `linux-cachyos/PKGBUILD`. The array maps 1:1 to the `source` array:
+### If Conflicts Occur
 
+Conflicts are now rare, but if they happen:
+
+1. **In the `prepare()` function**: Preserve our custom section (marked with `### CUSTOM SECTION` banners)
+2. **In the `_builtin_critical_modules` variable**: Keep our definition
+3. **Elsewhere**: Generally take upstream's changes
+
+Our custom code is clearly marked with banner comments:
 ```bash
-source=(
-    "linux-X.Y.Z.tar.xz"              # → hash 1 (kernel tarball)
-    "config"                           # → hash 2 (kernel config)
-    "config-fragment-builtin-modules"  # → hash 3 (OUR custom file)
-    "0001-cachyos-base-all.patch"      # → hash 4 (upstream patch)
-)
+### ========================================================================
+### CUSTOM SECTION: Builtin Critical Modules Optimization
+### Fork: github.com/icscript/linux-cachyos
+### ...
+### ========================================================================
 ```
-
-**Resolution pattern:**
-- **Keep our hash** for `config-fragment-builtin-modules` (unchanged unless we modified it)
-- **Take upstream's hash** for the patch file (updated with new kernel version)
-- **Take upstream's hash** for kernel tarball (new version)
-
-Example conflict:
-```
-<<<<<<< HEAD (our branch)
-        'abc123...'  # our config-fragment hash
-        'old456...'  # old patch hash
-=======
-        'new789...'  # new patch hash from upstream
->>>>>>> upstream/master
-```
-
-Correct resolution:
-```
-        'abc123...'  # keep our config-fragment hash
-        'new789...'  # take upstream's new patch hash
-```
-
-### Other Potential Conflicts
-
-If upstream modifies the PKGBUILD structure (adding/removing sources, changing build logic), more complex conflict resolution may be needed. Review changes carefully and ensure our `config-fragment-builtin-modules` source entry and its corresponding hash remain intact.
 
 ---
 
@@ -104,5 +99,11 @@ If upstream modifies the PKGBUILD structure (adding/removing sources, changing b
 ## Technical Notes
 
 - The branch name was auto-generated and is intentionally kept as-is
-- SHA crypto modules (SHA1_SSSE3, SHA512_SSSE3) were removed from the fragment in kernel 6.17 as they moved to lib/crypto
+- SHA crypto modules (SHA1_SSSE3, SHA512_SSSE3) were removed in kernel 6.17 as they moved to lib/crypto
 - INTEL_IOATDMA is disabled to allow DCA as builtin on AMD Zen4 (Kconfig constraint)
+- The `linux-cachyos-server/` variant has the same inlined customization for consistency
+
+## Documentation
+
+- `KERNEL_MODULE_OPTIMIZATION.md` - Technical details on module selection and performance impact
+- `USAGE_GUIDE_MODULE_OPTIMIZATION.md` - User guide for the optimization feature

@@ -1,7 +1,10 @@
 # Kernel Module Optimization Strategy
 
 ## Overview
+
 This document explains how to optimize kernel module configuration for maximum performance on blockchain P2P validator nodes while keeping the kernel small.
+
+> **Implementation Note (December 2025):** The module configuration is now **inlined directly in the PKGBUILD** rather than using a separate `config-fragment-builtin-modules` file. This change eliminates hash conflicts when syncing from upstream. See the `### CUSTOM SECTION` in the PKGBUILD's `prepare()` function for the actual implementation.
 
 ## Understanding the Build Options
 
@@ -149,17 +152,19 @@ Fork the entire CachyOS config and maintain your own:
 **Pros:** Complete control
 **Cons:** High maintenance, need to merge upstream changes
 
-## Recommended Approach: Option B (Config Fragment)
+## Recommended Approach: Inlined Config in PKGBUILD
 
-1. **Create config fragment** with critical modules as =y
-2. **Modify PKGBUILD** to apply fragment after loading base config
-3. **Optionally use modprobed-db** to disable unused modules (=n)
+The optimization is now **inlined directly in the PKGBUILD** (see `### CUSTOM SECTION` in `prepare()`). This approach:
+
+1. **Applies builtin settings** for critical modules (=y) during build
+2. **Optionally uses modprobed-db** to disable unused modules (=n)
 
 This gives you:
 - ✅ Maximum performance for hot-path modules
 - ✅ Small kernel (unused modules disabled)
-- ✅ Survives kernel updates
+- ✅ Survives kernel updates (no hash conflicts!)
 - ✅ Clean, documented, maintainable
+- ✅ Simple upstream syncing
 
 ## Testing & Validation
 
@@ -196,4 +201,4 @@ Rough estimates for your modprobed.db (88 modules):
 
 ## Next Steps
 
-See `linux-cachyos-server/config-fragment-builtin-modules` for implementation.
+See the `### CUSTOM SECTION` in `linux-cachyos/PKGBUILD` for the implementation. The inlined config settings are in the `prepare()` function.
