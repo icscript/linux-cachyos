@@ -119,6 +119,35 @@ If not needed for your specific hardware:
 - **USB networking:** cdc_ether, rndis_host, usbnet if not needed
 - **Multimedia:** All sound, video, input device drivers
 
+### Disabled by Default: Consumer GPU Drivers
+
+For headless server builds (and to fix Propeller build issues), consumer GPU drivers are disabled by default via `_disable_gpu_drm=yes`:
+
+```
+CONFIG_DRM_AMDGPU=n      # AMD GPU - causes Propeller stack frame issues
+CONFIG_DRM_RADEON=n      # Legacy AMD/ATI
+CONFIG_DRM_I915=n        # Intel integrated graphics
+CONFIG_DRM_XE=n          # Newer Intel graphics
+CONFIG_DRM_NOUVEAU=n     # NVIDIA open-source driver
+CONFIG_DRM_VIRTIO_GPU=n  # Virtual GPU (not needed for bare metal)
+CONFIG_DRM_BOCHS=n       # QEMU emulated
+CONFIG_DRM_CIRRUS_QEMU=n # QEMU emulated
+CONFIG_DRM_VKMS=n        # Virtual KMS
+CONFIG_DRM_XEN_FRONTEND=n # Xen virtual
+```
+
+**Preserved for IPMI/BMC console (upstream defaults, not changed by us):**
+```
+CONFIG_DRM=y             # DRM core - upstream CachyOS default
+CONFIG_DRM_SIMPLEDRM=y   # Early boot framebuffer - upstream default
+CONFIG_DRM_AST=m         # ASPEED AST2xxx BMC graphics
+CONFIG_DRM_MGAG200=m     # Matrox G200 server graphics
+```
+
+> **Note:** We don't modify DRM/SIMPLEDRM - these are upstream CachyOS defaults. Kconfig only requires dependencies to be "at least as built-in" as dependents (so `DRM=m` with `AST=m` should technically work). CachyOS likely chose `DRM=y` for early boot console or gaming performance reasons (their original target). Worth testing `DRM=m` someday for server builds.
+
+**Why disable consumer GPUs?** AMD's Display Core (`display_mode_vba_30.c`) exceeds LLVM's 2048-byte stack frame limit during Propeller optimization, causing build failures. Disabling the AMD GPU driver eliminates this code from the build.
+
 ## Performance Impact Estimates
 
 Based on kernel development research:

@@ -36,13 +36,21 @@ The key customization is the **inlined config section** in the PKGBUILD's `prepa
 - Intel ixgbe 10GbE NICs
 - NVMe storage
 
-### Enabling/Disabling the Optimization
+### Enabling/Disabling the Optimizations
 
-The PKGBUILD checks for `_builtin_critical_modules`:
+**Builtin critical modules** (crypto, NVMe, ixgbe):
 ```bash
 export _builtin_critical_modules=yes   # Enable (default)
 export _builtin_critical_modules=no    # Disable
 ```
+
+**Consumer GPU driver removal** (AMD, Intel, NVIDIA):
+```bash
+export _disable_gpu_drm=yes   # Disable GPUs (default) - required for Propeller
+export _disable_gpu_drm=no    # Enable GPUs (for desktop use)
+```
+
+> **Note:** Consumer GPU drivers (AMD/Intel/NVIDIA) are set to `=n` by default to fix Propeller build failures. AMD's Display Core code exceeds LLVM's stack frame size limit during Propeller optimization. IPMI graphics (AST, MGAG200) remain as modules `=m` - we don't modify DRM core settings which are upstream defaults.
 
 ### Why Inlined? (Eliminating Hash Conflicts)
 
@@ -76,14 +84,21 @@ git merge upstream/master
 
 Conflicts are now rare, but if they happen:
 
-1. **In the `prepare()` function**: Preserve our custom section (marked with `### CUSTOM SECTION` banners)
+1. **In the `prepare()` function**: Preserve our custom sections (marked with `### CUSTOM SECTION` banners)
 2. **In the `_builtin_critical_modules` variable**: Keep our definition
-3. **Elsewhere**: Generally take upstream's changes
+3. **In the `_disable_gpu_drm` variable**: Keep our definition
+4. **Elsewhere**: Generally take upstream's changes
 
 Our custom code is clearly marked with banner comments:
 ```bash
 ### ========================================================================
 ### CUSTOM SECTION: Builtin Critical Modules Optimization
+### Fork: github.com/icscript/linux-cachyos
+### ...
+### ========================================================================
+
+### ========================================================================
+### CUSTOM SECTION: Disable Consumer GPU/DRM Drivers
 ### Fork: github.com/icscript/linux-cachyos
 ### ...
 ### ========================================================================

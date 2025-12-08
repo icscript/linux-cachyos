@@ -52,6 +52,13 @@ export _builtin_critical_modules=no
 bash build-cachyos-kernel.sh
 ```
 
+**Enable consumer GPU drivers (desktop use):**
+```bash
+# Only needed if you want AMD/Intel/NVIDIA GPU support
+export _disable_gpu_drm=no
+bash build-cachyos-kernel.sh
+```
+
 ## How It Works
 
 ### What Happens During Build
@@ -61,11 +68,15 @@ bash build-cachyos-kernel.sh
    - Applies inlined config settings in `prepare()` function
    - Changes crypto (3), NVMe (4), network (11) modules from =m to =y
    - Disables INTEL_IOATDMA (Intel Xeon only, conflicts with DCA on AMD)
-3. **CPU optimization** - Sets Zen4 architecture flags
-4. **Optional: modprobed-db** (if `_localmodcfg=yes`)
+3. **Consumer GPU drivers disabled** (if `_disable_gpu_drm=yes`, default)
+   - Disables AMD (AMDGPU, Radeon), Intel (i915, Xe), NVIDIA (nouveau) → `=n`
+   - Fixes Propeller build failures caused by AMD Display Core stack size
+   - IPMI graphics (AST, MGAG200) remain as modules `=m` (upstream default)
+4. **CPU optimization** - Sets Zen4 architecture flags
+5. **Optional: modprobed-db** (if `_localmodcfg=yes`)
    - Disables modules NOT in your modprobed.db
    - Keeps builtin modules as =y (they won't be changed to =n)
-5. **Kernel compilation** - Builds with optimized config
+6. **Kernel compilation** - Builds with optimized config
 
 ### Why This Approach?
 
@@ -378,7 +389,13 @@ A: You still benefit from NVMe optimization (7-10% I/O improvement). Crypto modu
 A: Only if you're running validators in VMs. For bare metal, leave them as =m (commented out in config fragment).
 
 **Q: Can I combine with AutoFDO/Propeller?**
-A: Yes! These are complementary optimizations. AutoFDO optimizes code layout, builtin modules optimize linking/loading.
+A: Yes! These are complementary optimizations. AutoFDO optimizes code layout, builtin modules optimize linking/loading. Note: Consumer GPU drivers are disabled by default (`_disable_gpu_drm=yes`) to prevent Propeller build failures.
+
+**Q: Why are GPU drivers disabled by default?**
+A: AMD's Display Core code (`display_mode_vba_30.c`) has a function with a 2096-byte stack frame that exceeds LLVM's 2048-byte limit during Propeller optimization, causing build failures. IPMI graphics (AST/MGAG200) remain as modules - we only disable consumer GPUs (AMD/Intel/NVIDIA), not the DRM core which is an upstream default.
+
+**Q: I need AMD/Intel/NVIDIA GPU support. What do I do?**
+A: Set `export _disable_gpu_drm=no` before building. Note this may cause Propeller builds to fail.
 
 **Q: How do I disable the optimization?**
 A: Set `export _builtin_critical_modules=no` before building.
@@ -406,9 +423,10 @@ A: Set `export _builtin_critical_modules=no` before building.
 
 ### What You Control
 
-- `_builtin_critical_modules` - Enable/disable optimization
+- `_builtin_critical_modules` - Enable/disable builtin optimization (default: yes)
+- `_disable_gpu_drm` - Disable consumer GPU drivers for Propeller compatibility (default: yes)
 - `_localmodcfg` - Use modprobed-db for minimal module set
-- PKGBUILD `### CUSTOM SECTION` - Customize which modules are builtin
+- PKGBUILD `### CUSTOM SECTION` - Customize which modules are builtin/disabled
 
 ### Next Steps
 
